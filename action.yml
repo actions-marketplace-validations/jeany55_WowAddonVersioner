@@ -1,0 +1,27 @@
+name: "WoW Addon TOC Versioner"
+description: "Checks to see if the versions in your addon's .toc files are old and updates them and creates a PR if necessary."
+
+inputs:
+  wikiURL:
+    description: "The URL of the WoW Addon Wiki to use for version checking."
+    required: false
+    default: "https://warcraft.wiki.gg/wiki/API_GetBuildInfo"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Check out repository"
+      uses: "actions/checkout@v3"
+
+    - name: "Run WoW Addon TOC Versioner"
+      run: "./addonVersioner.sh ${{ inputs.wikiURL }}"
+      shell: bash
+
+    - name: "Create Pull Request"
+      uses: "peter-evans/create-pull-request@v4"
+      with:
+        commit-message: "Update WoW Addon TOC versions"
+        title: "[Automated] Update WoW Addon TOC versions"
+        body: "WoW Addon TOC Versioner - This PR updates the interface numbers in the .toc files"
+        branch: "auto/update-addon-versions"
+        labels: "auto-generated, addon-version-update"
