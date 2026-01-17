@@ -15,7 +15,7 @@
 URL="$1"
 
 # Get the directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$2"
 
 # Fetch the webpage
 HTML=$(curl -s "$URL")

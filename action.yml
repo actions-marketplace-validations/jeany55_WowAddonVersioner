@@ -14,7 +14,7 @@ runs:
       uses: "actions/checkout@v3"
 
     - name: "Run WoW Addon TOC Versioner"
-      run: "${{ github.action_path }}/addonVersioner.sh ${{ inputs.wikiURL }}"
+      run: "${{ github.action_path }}/addonVersioner.sh ${{ inputs.wikiURL }} ${{ github.workspace }}"
       shell: bash
 
     - name: "Create Pull Request"
