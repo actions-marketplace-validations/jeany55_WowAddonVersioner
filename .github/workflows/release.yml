@@ -49,7 +49,7 @@ jobs:
 
       - name: Build
         shell: bash
-        run: npm ci && npm run bundle
+        run: npm ci && npm run bundle && git status
 
       - name: Commit and tag release
         run: |
