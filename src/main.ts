@@ -21,21 +21,20 @@ import path from 'path'
  */
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
     core.info(
       Constants.COLOR_LOGO +
-        convertDataToHorizontalTable(
+      convertDataToHorizontalTable(
+        [
           [
-            [
-              chalk.rgb(255, 153, 235)(Constants.VERSION),
-              chalk.rgb(255, 153, 235)(Constants.AUTHOR),
-              chalk.blueBright('Quetz the Great')
-            ]
-          ],
-          [chalk.white('Version'), chalk.white('Author'), chalk.white('Special Thanks')],
-          TABLE_STYLE_DOUBLE_LINED
-        ) +
-        '\n──────────────────────────────────────────────────────────────────────────────────────────────────────────────'
+            chalk.rgb(255, 153, 235)(Constants.VERSION),
+            chalk.rgb(255, 153, 235)(Constants.AUTHOR),
+            chalk.blueBright('Quetz the Great')
+          ]
+        ],
+        [chalk.white('Version'), chalk.white('Author'), chalk.white('Special Thanks')],
+        TABLE_STYLE_DOUBLE_LINED
+      ) +
+      '\n──────────────────────────────────────────────────────────────────────────────────────────────────────────────'
     )
 
     core.info(`Checking for toc files in directory: ${chalk.bold(Constants.TOC_DIRECTORY)}`)
@@ -49,10 +48,12 @@ export async function run(): Promise<void> {
       return
     }
 
-    core.info(`Found ${chalk.bold(tocFiles.length)} .toc file(s)!`)
-    core.info(`Fetching current interface numbers from ${chalk.bold(Constants.WIKI_URL)}...`)
+    const wikiUrl = core.getInput('wiki-url')
 
-    const rawHTML = await fetchWebpage(Constants.WIKI_URL)
+    core.info(`Found ${chalk.bold(tocFiles.length)} .toc file(s)!`)
+    core.info(`Fetching current interface numbers from ${chalk.bold(wikiUrl)}...`)
+
+    const rawHTML = await fetchWebpage(wikiUrl)
 
     core.info('Comparing toc interface numbers with latest versions...')
 
