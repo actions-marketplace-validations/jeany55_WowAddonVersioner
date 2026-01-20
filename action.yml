@@ -57,6 +57,11 @@ runs:
       id: versioner
       run: node ${{ github.action_path }}/dist/index.js
       shell: bash
+      with:
+        wiki-url: ${{ inputs.wiki-url }}
+        toc-directory: ${{ inputs.toc-directory }}
+        fail-job-when-updates-found: ${{ inputs.fail-job-when-updates-found }}
+        create-issue-if-updates-found: ${{ inputs.create-issue-if-updates-found }}
 
     - name: 'Create Pull Request'
       uses: 'peter-evans/create-pull-request@v4'
