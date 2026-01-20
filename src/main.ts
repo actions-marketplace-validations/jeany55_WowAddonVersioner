@@ -23,18 +23,18 @@ export async function run(): Promise<void> {
   try {
     core.info(
       Constants.COLOR_LOGO +
-      convertDataToHorizontalTable(
-        [
+        convertDataToHorizontalTable(
           [
-            chalk.rgb(255, 153, 235)(Constants.VERSION),
-            chalk.rgb(255, 153, 235)(Constants.AUTHOR),
-            chalk.blueBright('Quetz the Great')
-          ]
-        ],
-        [chalk.white('Version'), chalk.white('Author'), chalk.white('Special Thanks')],
-        TABLE_STYLE_DOUBLE_LINED
-      ) +
-      '\n──────────────────────────────────────────────────────────────────────────────────────────────────────────────'
+            [
+              chalk.rgb(255, 153, 235)(Constants.VERSION),
+              chalk.rgb(255, 153, 235)(Constants.AUTHOR),
+              chalk.blueBright('Quetz the Great')
+            ]
+          ],
+          [chalk.white('Version'), chalk.white('Author'), chalk.white('Special Thanks')],
+          TABLE_STYLE_DOUBLE_LINED
+        ) +
+        '\n──────────────────────────────────────────────────────────────────────────────────────────────────────────────'
     )
 
     core.info(`Checking for toc files in directory: ${chalk.bold(Constants.TOC_DIRECTORY)}`)
