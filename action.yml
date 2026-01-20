@@ -1,6 +1,5 @@
 name: WoW Addon TOC Versioner
-description:
-  Checks to see if the versions in your addon's .toc files are old and updates them and creates a PR if necessary.
+description: Checks to see if the versions in your addon's .toc files are old and updates them and creates a PR if necessary.
 author: Jeany55
 
 branding:
@@ -9,33 +8,33 @@ branding:
 
 inputs:
   wiki-url:
-    description: 'The URL of the WoW Addon Wiki to use for version checking.'
+    description: "The URL of the WoW Addon Wiki to use for version checking."
     required: false
-    default: 'https://warcraft.wiki.gg/wiki/API_GetBuildInfo'
+    default: "https://warcraft.wiki.gg/wiki/API_GetBuildInfo"
   toc-directory:
     description: "If the toc files are not in the repository root, specify the directory here. (eg. '/src/addonTocs')"
     required: false
-    default: ''
+    default: ""
   create-pr:
-    description: 'Whether to create a pull request with the version updates if any are found. (true/false)'
+    description: "Whether to create a pull request with the version updates if any are found. (true/false)"
     required: false
     default: true
   fail-job-when-updates-found:
-    description: 'Whether to fail the GitHub Action job if any updates are found. (true/false)'
+    description: "Whether to fail the GitHub Action job if any updates are found. (true/false)"
     required: false
     default: false
   pr-branch-name:
     description: "The name of the branch to create for the pull request, if the 'create-pr' option is true."
     required: false
-    default: 'auto/update-interface-versions'
+    default: "auto/update-interface-versions"
   create-issue-if-updates-found:
-    description: 'Whether to create an issue if any updates are found. (true/false)'
+    description: "Whether to create an issue if any updates are found. (true/false)"
     required: false
     default: true
   github-token:
-    description: 'GitHub token to use when creating the pull request and/or issue.'
+    description: "GitHub token to use when creating the pull request and/or issue."
     required: false
-    default: '${{ secrets.GITHUB_TOKEN }}'
+    default: "${{ secrets.GITHUB_TOKEN }}"
 
 # Define your outputs here.
 # outputs:
@@ -43,7 +42,7 @@ inputs:
 #     description: Your output description here
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Check out repository
       uses: actions/checkout@v4
@@ -51,7 +50,7 @@ runs:
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '24'
+        node-version: "24"
 
     - name: Run WoW Addon TOC Versioner
       id: versioner
@@ -63,21 +62,26 @@ runs:
         fail_job_when_updates_found: ${{ inputs.fail-job-when-updates-found }}
         create_issue_if_updates_found: ${{ inputs.create-issue-if-updates-found }}
 
-    - name: 'Create Pull Request'
-      uses: 'peter-evans/create-pull-request@v4'
+    - name: "Create Pull Request"
+      uses: "peter-evans/create-pull-request@v4"
       with:
         token: ${{ inputs.github-token }}
-        commit-message: 'Update toc interface versions to latest'
-        title: 'Update TOC interface versions'
+        commit-message: "Update toc interface versions to latest"
+        title: "Update TOC interface versions"
         body: ${{ steps.versioner.outputs.tocs-pr }}
-        branch: '${{ inputs.pr-branch-name }}'
-        labels: 'auto-generated, addon-version-update'
+        branch: "${{ inputs.pr-branch-name }}"
+        labels: "auto-generated, addon-version-update"
       if: ${{ inputs.create-pr == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
 
-    - name: 'Create Issue'
+    - name: "Copy issue template to workspace"
+      run: cp "${{ github.action_path }}/issue-template.md" "./issue-template.md"
+      shell: bash
+      if: ${{ inputs.create-issue-if-updates-found == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
+
+    - name: "Create Issue"
       uses: JasonEtco/create-an-issue@v2
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
-        filename: ${{ github.action_path }}/issue-template.md
+        filename: issue-template.md
       if: ${{ inputs.create-issue-if-updates-found == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
