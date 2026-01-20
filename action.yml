@@ -61,6 +61,7 @@ runs:
         toc_directory: ${{ inputs.toc-directory }}
         fail_job_when_updates_found: ${{ inputs.fail-job-when-updates-found }}
         create_issue_if_updates_found: ${{ inputs.create-issue-if-updates-found }}
+        FORCE_COLOR: 1
 
     - name: "Create Pull Request"
       uses: "peter-evans/create-pull-request@v4"
@@ -84,4 +85,5 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         filename: issue-template.md
+        update_existing: true
       if: ${{ inputs.create-issue-if-updates-found == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
