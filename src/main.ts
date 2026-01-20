@@ -48,7 +48,7 @@ export async function run(): Promise<void> {
       return
     }
 
-    const wikiUrl = core.getInput('wiki-url')
+    const wikiUrl = Constants.WIKI_URL
 
     core.info(`Found ${chalk.bold(tocFiles.length)} .toc file(s)!`)
     core.info(`Fetching current interface numbers from ${chalk.bold(wikiUrl)}...`)
@@ -102,7 +102,7 @@ export async function run(): Promise<void> {
 
     core.info(`Found ${chalk.bold(tocsNeededingUpdates.length)} toc file(s) needing interface updates:`)
 
-    if (core.getBooleanInput('fail-job-when-updates-found')) {
+    if (process.env.fail_job_when_updates_found === 'true') {
       core.error('Failing job due to fail-job-when-updates-found being set to true.')
       const message = `${tocsNeededingUpdates.length} toc file(s) need interface updates: ${tocsNeededingUpdates.map((toc) => toc.fileName).join(', ')}`
 
@@ -125,7 +125,7 @@ export async function run(): Promise<void> {
 
     core.setOutput('tocs-updated', tocsOutput.length)
 
-    if (core.getBooleanInput('create-issue-if-updates-found')) {
+    if (process.env.create_issue_if_updates_found === 'true') {
       core.info('Creating issue template file...')
 
       // Make a brand new file

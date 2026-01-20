@@ -56,7 +56,7 @@ const LOGO = `
              ░░░░░                                                                                       
 `
 
-const tocDirectory = core.getInput('toc-directory')
+const tocDirectory = process.env.toc_directory || ''
 const githubWorkspace = process.env.GITHUB_WORKSPACE || ''
 
 const prTemplate = (
@@ -96,6 +96,7 @@ export const Constants = {
   TOC_DIRECTORY: tocDirectory ? path.join(githubWorkspace, tocDirectory) : githubWorkspace,
   TOC_DIRECTORY_EXTRA: tocDirectory,
   VERSION: version,
+  WIKI_URL: process.env.wiki_url || '',
   AUTHOR: author,
   PR_TEMPLATE: prTemplate,
   ISSUE_TEMPLATE: issueTemplate
