@@ -79,5 +79,5 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
-        filename: issue-template.md
+        filename: ${{ github.action_path }}/issue-template.md
       if: ${{ inputs.create-issue-if-updates-found == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
