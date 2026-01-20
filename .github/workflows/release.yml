@@ -60,7 +60,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dist
           git add src
-          git status
+          git add package.json
+          git add package-lock.json
           git commit -m "Release version $VER"
           git push
           git tag -a "$VER" -m "Release version $VER"
