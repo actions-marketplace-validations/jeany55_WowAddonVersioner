@@ -1,6 +1,6 @@
 name: WoW Addon TOC Versioner
 description:
-  Checks to see if the versions in your addon's .toc files are old and updates them and creates a PR if necessary.
+  A GitHub Action for World of Warcraft Addon developers that will automatically make a PR and update your addon's toc files if their interface versions are behind. Supports multi .tocs and can optionally create an issue.
 author: Jeany55
 
 branding:
