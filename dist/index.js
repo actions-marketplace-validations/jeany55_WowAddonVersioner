@@ -27583,7 +27583,7 @@ var GameType;
     GameType["Mists"] = "Mists";
 })(GameType || (GameType = {}));
 
-var version = "0.0.19";
+var version = "0.0.20";
 var author = "Jeany55";
 
 /**
@@ -30305,6 +30305,13 @@ const applyOptions = (object, options = {}) => {
 	object.level = options.level === undefined ? colorLevel : options.level;
 };
 
+class Chalk {
+	constructor(options) {
+		// eslint-disable-next-line no-constructor-return
+		return chalkFactory(options);
+	}
+}
+
 const chalkFactory = options => {
 	const chalk = (...strings) => strings.join(' ');
 	applyOptions(chalk, options);
@@ -30468,9 +30475,11 @@ const applyStyle = (self, string) => {
 
 Object.defineProperties(createChalk.prototype, styles);
 
-const chalk = createChalk();
+createChalk();
 createChalk({level: stderrColor ? stderrColor.level : 0});
 
+// Force chalk to use color level 3 (24-bit/truecolor) for GitHub Actions compatibility
+var chalk = new Chalk({ level: 3 });
 /**
  * The main function for the action.
  *
