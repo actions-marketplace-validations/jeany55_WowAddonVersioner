@@ -1,6 +1,6 @@
 name: WoW Addon TOC Versioner
 description:
-  For World of Warcraft Addon developers, this action will automatically make a PR and update your addon's toc files if their interface versions are old. Supports multi .tocs.
+  For World of Warcraft Addon developers, automatically make a PR and update your addon's toc files if their interface versions are behind. Supports multi .tocs.
 author: Jeany55
 
 branding:
