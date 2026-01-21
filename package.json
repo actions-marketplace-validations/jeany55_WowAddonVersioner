@@ -1,7 +1,7 @@
 {
   "name": "wow-addon-versioner",
   "description": "An action to help keep your addon's toc files up to date",
-  "version": "0.0.20",
+  "version": "1.0.0",
   "author": "Jeany55",
   "type": "module",
   "private": true,
