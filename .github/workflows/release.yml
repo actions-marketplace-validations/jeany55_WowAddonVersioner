@@ -71,7 +71,7 @@ jobs:
           VERSION_TYPE: ${{ github.event.inputs.versionType }}
 
       - name: Create Release
-        if: ${{ inputs.createRelease == 'true' }}
+        if: ${{ inputs.createRelease }}
         uses: ncipollo/release-action@v1.12.0
         with:
           tag: ${{ env.VERSION }}
