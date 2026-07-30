@@ -1,0 +1,46 @@
+name: 🧪 Release Beta
+run-name: 🧪 Release beta from ${{ github.ref_name }}
+on:
+  workflow_dispatch:
+    inputs:
+      betaTag:
+        description: 'Beta tag name (e.g. v1-beta)'
+        required: true
+        default: 'v1-beta'
+        type: string
+
+jobs:
+  release-beta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.ACCESS_TOKEN_GIT }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Build
+        shell: bash
+        run: npm ci && npm run bundle && git status
+
+      - name: Commit dist and force-update beta tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit built dist if there are changes
+          git add dist
+          if git diff --cached --quiet; then
+            echo "No dist changes to commit"
+          else
+            git commit -m "Build beta dist from $(git rev-parse --short HEAD)"
+            git push
+          fi
+
+          # Force-update the beta tag to current HEAD
+          BETA_TAG="${{ inputs.betaTag }}"
+          git tag -f "$BETA_TAG" HEAD -m "Beta release from ${{ github.ref_name }} at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push -f origin "$BETA_TAG"

@@ -3,6 +3,7 @@ import fs from 'fs'
 import * as core from '@actions/core'
 
 import { TocFile } from './models/tocFile'
+import { ActionFile } from './models/actionFile'
 import Table, { VerticalTableRow } from 'cli-table3'
 import { GameType } from './models'
 // import asTable from "as-table";
@@ -200,4 +201,60 @@ export function getInterfaceFromHtml(html: string, gameType: GameType) {
 
 export function createFileAndWriteContents(filePath: string, contents: string) {
   fs.writeFileSync(filePath, contents, 'utf8')
+}
+
+/**
+ * Extract the game version string (e.g. "12.0.1") for a specific game type from the wiki HTML.
+ * The table format is: Game type | Expansion | Version | Number | Date | Interface
+ * Targets the Version column (3rd column) after matching the game type.
+ * @param html The HTML content to search.
+ * @param gameType The game type to find the version for.
+ * @returns The version string, or null if not found.
+ */
+export function getVersionFromHtml(html: string, gameType: GameType): string | null {
+  // Match: <td>GameType</td> then skip two <td>...</td> (Icon + Expansion), then capture version from the next <td>
+  // The version may be wrapped in an <a> tag, so we skip any inner tags before capturing digits
+  const regex = new RegExp(
+    `<td>\\s*${gameType}\\s*</td>` +
+      `\\s*<td[^>]*>[\\s\\S]*?</td>` + // Skip Icon column
+      `\\s*<td[^>]*>[\\s\\S]*?</td>` + // Skip Expansion column
+      `\\s*<td[^>]*>[\\s\\S]*?(\\d[\\d.]+)`, // Capture Version (may be inside <a> tags)
+    's'
+  )
+  const match = regex.exec(html)
+  return match ? match[1].trim() : null
+}
+
+/**
+ * Extract all game version strings from the wiki HTML, returning a map of GameType to version.
+ * @param html The HTML content to search.
+ * @returns A map of GameType to latest version string.
+ */
+export function getAllVersionsFromHtml(html: string): Map<GameType, string> {
+  const versions = new Map<GameType, string>()
+
+  for (const gameType of Object.values(GameType)) {
+    const version = getVersionFromHtml(html, gameType)
+    if (version) {
+      versions.set(gameType, version)
+    }
+  }
+
+  return versions
+}
+
+/**
+ * Reads all GitHub Action workflow files (.yml/.yaml) from the .github/workflows directory.
+ * @param workspaceDir The repository root directory.
+ * @returns An array of ActionFile objects.
+ */
+export function readActionFilesFromDirectory(workspaceDir: string): ActionFile[] {
+  const workflowsDir = path.join(workspaceDir, '.github', 'workflows')
+
+  if (!fs.existsSync(workflowsDir)) return []
+
+  const files = fs.readdirSync(workflowsDir)
+  return files
+    .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+    .map((f) => new ActionFile(f, workflowsDir, workspaceDir))
 }

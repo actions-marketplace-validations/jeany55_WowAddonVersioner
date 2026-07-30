@@ -1,6 +1,7 @@
 name: WoW Addon TOC Versioner
 description:
-  For World of Warcraft Addon developers, make a PR to update your addon's toc files if their interface versions are behind.
+  For World of Warcraft Addon developers, make a PR to update your addon's toc files if their interface versions are
+  behind.
 author: Jeany55
 
 branding:
@@ -32,10 +33,26 @@ inputs:
     description: 'Whether to create an issue if any updates are found. (true/false)'
     required: false
     default: false
-  github-token:
-    description: 'GitHub token to use when creating the pull request and/or issue.'
+  update-action-versions:
+    description:
+      'Whether to also scan GitHub Action workflow files for outdated WoW game version strings and update them. Requires
+      a PAT with workflows permission via the github-token input. (true/false)'
     required: false
-    default: '${{ secrets.GITHUB_TOKEN }}'
+    default: false
+  action-version-regex:
+    description:
+      'Regex pattern that matches the region containing game version strings in action files. Individual versions
+      (X.Y.Z) are extracted from within each match. Override to match other formats like YAML arrays, space-separated
+      lists, etc.'
+    required: false
+    default: '\d+\.\d+\.\d+(?:\s*,\s*\d+\.\d+\.\d+)+'
+  github-token:
+    description:
+      'GitHub token to use when creating the pull request and/or issue. If update-action-versions is true, a Personal
+      Access Token (PAT) with "contents: write" and "workflows: write" permissions is required, since the default
+      GITHUB_TOKEN cannot modify workflow files.'
+    required: false
+    default: '${{ github.token }}'
 
 # Define your outputs here.
 # outputs:
@@ -46,7 +63,7 @@ runs:
   using: 'composite'
   steps:
     - name: Check out repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Node.js
       uses: actions/setup-node@v6
@@ -62,23 +79,29 @@ runs:
         toc_directory: ${{ inputs.toc-directory }}
         fail_job_when_updates_found: ${{ inputs.fail-job-when-updates-found }}
         create_issue_if_updates_found: ${{ inputs.create-issue-if-updates-found }}
+        update_action_versions: ${{ inputs.update-action-versions }}
+        action_version_regex: ${{ inputs.action-version-regex }}
         FORCE_COLOR: 3
 
     - name: 'Create Pull Request'
-      uses: 'peter-evans/create-pull-request@v4'
+      uses: 'peter-evans/create-pull-request@v7'
       with:
         token: ${{ inputs.github-token }}
-        commit-message: 'Update toc interface versions to latest'
-        title: 'Update TOC interface versions'
+        commit-message: 'Update file/toc versions to latest'
+        title: 'Update file/toc versions'
         body: ${{ steps.versioner.outputs.tocs-pr }}
         branch: '${{ inputs.pr-branch-name }}'
         labels: 'auto-generated, addon-version-update'
-      if: ${{ inputs.create-pr == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
+      if:
+        ${{ inputs.create-pr == 'true' && (steps.versioner.outputs.tocs-updated != '0' ||
+        steps.versioner.outputs.actions-updated != '0') }}
 
     - name: 'Copy issue template to workspace'
       run: cp "${{ github.action_path }}/issue-template.md" "./issue-template.md"
       shell: bash
-      if: ${{ inputs.create-issue-if-updates-found == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
+      if:
+        ${{ inputs.create-issue-if-updates-found == 'true' && (steps.versioner.outputs.tocs-updated != '0' ||
+        steps.versioner.outputs.actions-updated != '0') }}
 
     - name: 'Create Issue'
       uses: JasonEtco/create-an-issue@v2
@@ -87,4 +110,6 @@ runs:
       with:
         filename: issue-template.md
         update_existing: true
-      if: ${{ inputs.create-issue-if-updates-found == 'true' && steps.versioner.outputs.tocs-updated != '0' }}
+      if:
+        ${{ inputs.create-issue-if-updates-found == 'true' && (steps.versioner.outputs.tocs-updated != '0' ||
+        steps.versioner.outputs.actions-updated != '0') }}

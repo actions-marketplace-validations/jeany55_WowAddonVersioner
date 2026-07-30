@@ -28,76 +28,6 @@ import require$$0$9 from 'diagnostics_channel';
 import require$$2$2 from 'child_process';
 import require$$6$1 from 'timers';
 
-/******************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-/* global Reflect, Promise, SuppressedError, Symbol, Iterator */
-
-
-function __awaiter(thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-}
-
-function __generator(thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (g && (g = 0, op[0] && (_ = 0)), _) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-}
-
-function __spreadArray(to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-}
-
-typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-    var e = new Error(message);
-    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
-};
-
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function getDefaultExportFromCjs (x) {
@@ -27572,6 +27502,122 @@ function requireCore () {
 
 var coreExports = requireCore();
 
+/**
+ * Represents a GitHub Action workflow file that may contain WoW game version strings.
+ * @class
+ * @param {string} fileName The name of the workflow file.
+ * @param {string} location The directory path of the workflow file.
+ */
+class ActionFile {
+    fileName;
+    filePath;
+    relativePath;
+    fileContents;
+    originalContents;
+    versionUpdates = [];
+    foundVersions = [];
+    constructor(fileName, location, workspaceDir) {
+        this.fileName = fileName;
+        this.filePath = path.join(location, fileName);
+        this.relativePath = path.relative(workspaceDir, this.filePath);
+        this.fileContents = fs.readFileSync(this.filePath, 'utf-8');
+        this.originalContents = this.fileContents;
+    }
+    /**
+     * Find game version strings in the file and update any outdated versions.
+     *
+     * The versionPattern regex defines what a "region containing game versions" looks like.
+     * Within each match of that pattern, individual version strings (X.Y.Z) are extracted,
+     * looked up against the wiki, and replaced if outdated.
+     *
+     * @param latestVersions Map of GameType to latest version string from the wiki.
+     * @param versionPattern Regex string that matches the region containing game versions.
+     *                       Individual X.Y.Z versions are extracted from within each match.
+     */
+    checkAndUpdateVersions(latestVersions, versionPattern) {
+        const pattern = new RegExp(versionPattern, 'gm');
+        for (const regionMatch of [...this.fileContents.matchAll(pattern)]) {
+            const originalRegion = regionMatch[0];
+            // Extract all individual version strings from within the matched region
+            const versionMatches = [...originalRegion.matchAll(/\d+\.\d+\.\d+/g)];
+            if (versionMatches.length === 0)
+                continue;
+            const updatedRegion = versionMatches.reduce((region, versionMatch) => {
+                const version = versionMatch[0];
+                const gameType = this.findGameTypeForVersion(version, latestVersions);
+                const latestVersion = gameType ? (latestVersions.get(gameType) ?? null) : null;
+                this.foundVersions.push({
+                    gameType,
+                    currentVersion: version,
+                    latestVersion
+                });
+                if (!gameType)
+                    return region;
+                if (!latestVersion || !ActionFile.isVersionNewer(latestVersion, version))
+                    return region;
+                this.versionUpdates.push({
+                    gameType,
+                    oldVersion: version,
+                    newVersion: latestVersion
+                });
+                return region.replace(version, latestVersion);
+            }, originalRegion);
+            if (updatedRegion !== originalRegion) {
+                this.fileContents = this.fileContents.replace(originalRegion, updatedRegion);
+            }
+        }
+    }
+    /**
+     * Determine which GameType a version string belongs to by matching against
+     * the latest known versions from the wiki. Uses major.minor matching first,
+     * then falls back to major version matching if unambiguous.
+     */
+    findGameTypeForVersion(version, latestVersions) {
+        const majorMinor = version.split('.').slice(0, 2).join('.');
+        const majorVersion = version.split('.')[0];
+        // First try exact major.minor match
+        for (const [gameType, latestVersion] of [...latestVersions]) {
+            const latestMajorMinor = latestVersion.split('.').slice(0, 2).join('.');
+            if (latestMajorMinor === majorMinor)
+                return gameType;
+        }
+        // Fallback to major version match (only if unambiguous)
+        const majorMatches = [];
+        for (const [gameType, latestVersion] of [...latestVersions]) {
+            if (latestVersion.split('.')[0] === majorVersion)
+                majorMatches.push(gameType);
+        }
+        if (majorMatches.length === 1)
+            return majorMatches[0];
+        return null;
+    }
+    /**
+     * Compare two version strings (e.g. "12.0.1" vs "12.0.2").
+     * Returns true if newVersion is strictly newer than oldVersion.
+     */
+    static isVersionNewer(newVersion, oldVersion) {
+        const newParts = newVersion.split('.').map(Number);
+        const oldParts = oldVersion.split('.').map(Number);
+        for (let i = 0; i < Math.max(newParts.length, oldParts.length); i++) {
+            const n = newParts[i] || 0;
+            const o = oldParts[i] || 0;
+            if (n > o)
+                return true;
+            if (n < o)
+                return false;
+        }
+        return false;
+    }
+    get hasUpdates() {
+        return this.versionUpdates.length > 0;
+    }
+    saveUpdatedVersions() {
+        if (this.hasUpdates) {
+            fs.writeFileSync(this.filePath, this.fileContents, 'utf-8');
+        }
+    }
+}
+
 var GameType;
 (function (GameType) {
     GameType["Mainline"] = "Mainline";
@@ -27583,7 +27629,7 @@ var GameType;
     GameType["Mists"] = "Mists";
 })(GameType || (GameType = {}));
 
-var version = "1.0.2";
+var version = "1.1.2";
 var author = "Jeany55";
 
 /**
@@ -27592,33 +27638,38 @@ var author = "Jeany55";
  * @param {string} fileName The name of the TOC file.
  * @param {string} location The file path of the TOC file (not including the file name).
  */
-var TocFile = /** @class */ (function () {
-    function TocFile(fileName, location) {
-        this.noKnownInterface = false;
+class TocFile {
+    fileName;
+    filePath;
+    gameType;
+    interfaceNumber;
+    fileContents;
+    newInterfaceNumber;
+    noKnownInterface = false;
+    constructor(fileName, location) {
         this.fileName = fileName;
         this.filePath = path.join(location, fileName);
         this.fileContents = fs.readFileSync(this.filePath, 'utf-8');
-        var interfaceNumberMatch = this.fileContents.match(/## Interface: (\d+)/);
+        const interfaceNumberMatch = this.fileContents.match(/## Interface: (\d+)/);
         this.interfaceNumber = interfaceNumberMatch ? interfaceNumberMatch[1] : '';
         if (this.interfaceNumber) {
             // Remove last 4 digits to get the prefix
-            var prefixCheck = this.interfaceNumber.slice(0, -4);
+            const prefixCheck = this.interfaceNumber.slice(0, -4);
             this.gameType = GameTypePrefixesMap[prefixCheck];
         }
     }
-    TocFile.prototype.checkAndUpdateInterfaceVersion = function (newInterface) {
+    checkAndUpdateInterfaceVersion(newInterface) {
         if (newInterface > this.interfaceNumber) {
             this.newInterfaceNumber = newInterface;
         }
-    };
-    TocFile.prototype.saveUpdatedInterfaceNumber = function () {
+    }
+    saveUpdatedInterfaceNumber() {
         if (this.newInterfaceNumber) {
-            this.fileContents = this.fileContents.replace(/## Interface: \d+/, "## Interface: ".concat(this.newInterfaceNumber));
+            this.fileContents = this.fileContents.replace(/## Interface: \d+/, `## Interface: ${this.newInterfaceNumber}`);
             fs.writeFileSync(this.filePath, this.fileContents, 'utf-8');
         }
-    };
-    return TocFile;
-}());
+    }
+}
 
 var debug_1;
 var hasRequiredDebug;
@@ -29803,21 +29854,12 @@ var Table = /*@__PURE__*/getDefaultExportFromCjs(cliTable3Exports);
  * @param url The URL of the webpage to fetch.
  * @returns A promise that resolves to the content of the webpage as a string, or rejects if the fetch fails.
  */
-function fetchWebpage(url) {
-    return __awaiter(this, void 0, void 0, function () {
-        var response;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, fetch(url)];
-                case 1:
-                    response = _a.sent();
-                    if (!response.ok) {
-                        throw new Error("Failed to fetch ".concat(url, ": ").concat(response.statusText));
-                    }
-                    return [2 /*return*/, response.text()];
-            }
-        });
-    });
+async function fetchWebpage(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+    }
+    return response.text();
 }
 /**
  * Reads all .toc files from the specified directory.
@@ -29825,10 +29867,10 @@ function fetchWebpage(url) {
  * @returns An array of TocFile objects representing the .toc files in the directory.
  */
 function readTocFilesFromDirectory(directory) {
-    var files = fs.readdirSync(directory);
-    return files.filter(function (file) { return file.endsWith('.toc'); }).map(function (file) { return new TocFile(file, directory); });
+    const files = fs.readdirSync(directory);
+    return files.filter((file) => file.endsWith('.toc')).map((file) => new TocFile(file, directory));
 }
-var TABLE_STYLE_DOUBLE_LINED = {
+const TABLE_STYLE_DOUBLE_LINED = {
     top: '═',
     'top-mid': '╤',
     'top-left': '╔',
@@ -29851,12 +29893,12 @@ var TABLE_STYLE_DOUBLE_LINED = {
  * @returns {string} The formatted table as a string.
  */
 function convertDataToHorizontalTable(data, headers, chars) {
-    var table = new Table({
+    const table = new Table({
         head: headers,
         // colWidths: [100, 200],
-        chars: chars
+        chars
     });
-    table.push.apply(table, data);
+    table.push(...data);
     return '\n' + table.toString();
 }
 /**
@@ -29866,13 +29908,13 @@ function convertDataToHorizontalTable(data, headers, chars) {
 function convertDataToMarkdownTable(data) {
     if (data.length === 0)
         return '';
-    var markdown = '\n';
+    let markdown = '\n';
     // Headers
     markdown += '| ' + data[0].join(' | ') + ' |\n';
     // Separator
-    markdown += '| ' + data[0].map(function () { return '---'; }).join(' | ') + ' |\n';
+    markdown += '| ' + data[0].map(() => '---').join(' | ') + ' |\n';
     // Data rows
-    data.slice(1).forEach(function (row) {
+    data.slice(1).forEach((row) => {
         markdown += '| ' + row.join(' | ') + ' |\n';
     });
     return markdown;
@@ -29884,10 +29926,10 @@ function convertDataToMarkdownTable(data) {
  * @param l Lightness (0-1)
  */
 function hslToRgb(h, s, l) {
-    var c = (1 - Math.abs(2 * l - 1)) * s;
-    var x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-    var m = l - c / 2;
-    var r = 0, g = 0, b = 0;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
     if (h < 60) {
         r = c;
         g = x;
@@ -29924,21 +29966,20 @@ function hslToRgb(h, s, l) {
  * Apply smooth rainbow gradient coloring to each character of the logo
  */
 function createColorLogo(logo) {
-    var lines = logo.split('\n');
-    var coloredLines = [];
+    const lines = logo.split('\n');
+    const coloredLines = [];
     // Find the maximum line length for consistent gradient
-    var maxLength = Math.max.apply(Math, lines.map(function (l) { return l.length; }));
-    for (var _i = 0, lines_1 = lines; _i < lines_1.length; _i++) {
-        var line = lines_1[_i];
-        var coloredLine = '';
-        for (var i = 0; i < line.length; i++) {
-            var char = line[i];
+    const maxLength = Math.max(...lines.map((l) => l.length));
+    for (const line of lines) {
+        let coloredLine = '';
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
             if (char !== ' ' && char !== '\n') {
                 // Calculate hue based on horizontal position (0-300 for a nice rainbow, avoiding harsh magenta-to-red wrap)
-                var hue = (i / maxLength) * 300;
+                const hue = (i / maxLength) * 300;
                 // Use 85% saturation and 60% lightness for vibrant but not harsh colors on dark backgrounds
-                var _a = hslToRgb(hue, 0.85, 0.6), r = _a[0], g = _a[1], b = _a[2];
-                coloredLine += "\u001B[38;2;".concat(r, ";").concat(g, ";").concat(b, "m").concat(char, "\u001B[0m");
+                const [r, g, b] = hslToRgb(hue, 0.85, 0.6);
+                coloredLine += `\x1b[38;2;${r};${g};${b}m${char}\x1b[0m`;
             }
             else {
                 coloredLine += char;
@@ -29958,15 +29999,63 @@ function createColorLogo(logo) {
  */
 function getInterfaceFromHtml(html, gameType) {
     // Match rows that contain exactly <td>GameType</td> followed by interface in <code> tags
-    var regex = new RegExp("<td>".concat(gameType, "</td>[\\s\\S]*?<code>(\\d+)</code>"), 'g');
-    var match = regex.exec(html);
+    const regex = new RegExp(`<td>${gameType}</td>[\\s\\S]*?<code>(\\d+)</code>`, 'g');
+    const match = regex.exec(html);
     return match ? match[1] : null;
+}
+/**
+ * Extract the game version string (e.g. "12.0.1") for a specific game type from the wiki HTML.
+ * The table format is: Game type | Expansion | Version | Number | Date | Interface
+ * Targets the Version column (3rd column) after matching the game type.
+ * @param html The HTML content to search.
+ * @param gameType The game type to find the version for.
+ * @returns The version string, or null if not found.
+ */
+function getVersionFromHtml(html, gameType) {
+    // Match: <td>GameType</td> then skip two <td>...</td> (Icon + Expansion), then capture version from the next <td>
+    // The version may be wrapped in an <a> tag, so we skip any inner tags before capturing digits
+    const regex = new RegExp(`<td>\\s*${gameType}\\s*</td>` +
+        `\\s*<td[^>]*>[\\s\\S]*?</td>` + // Skip Icon column
+        `\\s*<td[^>]*>[\\s\\S]*?</td>` + // Skip Expansion column
+        `\\s*<td[^>]*>[\\s\\S]*?(\\d[\\d.]+)`, // Capture Version (may be inside <a> tags)
+    's');
+    const match = regex.exec(html);
+    return match ? match[1].trim() : null;
+}
+/**
+ * Extract all game version strings from the wiki HTML, returning a map of GameType to version.
+ * @param html The HTML content to search.
+ * @returns A map of GameType to latest version string.
+ */
+function getAllVersionsFromHtml(html) {
+    const versions = new Map();
+    for (const gameType of Object.values(GameType)) {
+        const version = getVersionFromHtml(html, gameType);
+        if (version) {
+            versions.set(gameType, version);
+        }
+    }
+    return versions;
+}
+/**
+ * Reads all GitHub Action workflow files (.yml/.yaml) from the .github/workflows directory.
+ * @param workspaceDir The repository root directory.
+ * @returns An array of ActionFile objects.
+ */
+function readActionFilesFromDirectory(workspaceDir) {
+    const workflowsDir = path.join(workspaceDir, '.github', 'workflows');
+    if (!fs.existsSync(workflowsDir))
+        return [];
+    const files = fs.readdirSync(workflowsDir);
+    return files
+        .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+        .map((f) => new ActionFile(f, workflowsDir, workspaceDir));
 }
 
 /**
  * Mapping of interface number prefixes to game types.
  */
-var GameTypePrefixesMap = {
+const GameTypePrefixesMap = {
     '1': GameType.Vanilla,
     '2': GameType.TBC,
     '3': GameType.WotLK,
@@ -29976,19 +30065,78 @@ var GameTypePrefixesMap = {
     '11': GameType.Mainline,
     '12': GameType.Mainline
 };
-var LOGO = "\n          \u2588\u2588\u2588\u2588\u2588   \u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588          \u2588\u2588\u2588\u2588\u2588   \u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588              \n         \u2591\u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588  \u2591\u2591\u2588\u2588\u2588          \u2591\u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588  \u2591\u2591\u2588\u2588\u2588               \n          \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588  \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588               \n          \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588  \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588               \n          \u2591\u2591\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588  \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588                \n           \u2591\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2591\u2588\u2588\u2588\u2588\u2588\u2591   \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588  \u2591\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2591\u2588\u2588\u2588\u2588\u2588\u2591                 \n             \u2591\u2591\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588     \u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588     \u2591\u2591\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588                   \n              \u2591\u2591\u2591   \u2591\u2591\u2591       \u2591\u2591\u2591\u2591\u2591\u2591       \u2591\u2591\u2591   \u2591\u2591\u2591                    \n                                                                        \n                                                                        \n                                                                        \n             \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588    \u2588\u2588\u2588\u2588\u2588\u2588\u2588      \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588                      \n            \u2591\u2588\u2591\u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2591\u2588  \u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591\u2588\u2588\u2588   \u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591\u2588\u2588\u2588                     \n            \u2591   \u2591\u2588\u2588\u2588  \u2591  \u2588\u2588\u2588     \u2591\u2591\u2588\u2588\u2588 \u2588\u2588\u2588     \u2591\u2591\u2591                      \n                \u2591\u2588\u2588\u2588    \u2591\u2588\u2588\u2588      \u2591\u2588\u2588\u2588\u2591\u2588\u2588\u2588                              \n                \u2591\u2588\u2588\u2588    \u2591\u2588\u2588\u2588      \u2591\u2588\u2588\u2588\u2591\u2588\u2588\u2588                              \n                \u2591\u2588\u2588\u2588    \u2591\u2591\u2588\u2588\u2588     \u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588     \u2588\u2588\u2588                     \n                \u2588\u2588\u2588\u2588\u2588    \u2591\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591   \u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588                      \n               \u2591\u2591\u2591\u2591\u2591       \u2591\u2591\u2591\u2591\u2591\u2591\u2591      \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591                       \n                                                                        \n                                                                        \n                                                                        \n \u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588               \u2588\u2588\u2588\u2588\u2588            \u2588\u2588\u2588\u2588\u2588                      \n\u2591\u2591\u2588\u2588\u2588  \u2591\u2591\u2588\u2588\u2588               \u2591\u2591\u2588\u2588\u2588            \u2591\u2591\u2588\u2588\u2588                       \n \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588\u2588    \u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 \n \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588 \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588  \u2591\u2591\u2591\u2591\u2591\u2588\u2588\u2588 \u2591\u2591\u2591\u2588\u2588\u2588\u2591    \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\n \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588  \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588\u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588   \u2588\u2588\u2588\u2588\u2588\u2588\u2588   \u2591\u2588\u2588\u2588    \u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588  \u2591\u2588\u2588\u2588 \u2591\u2591\u2591 \n \u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588  \u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588\u2591\u2588\u2588\u2588 \u2591\u2588\u2588\u2588  \u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588   \u2591\u2588\u2588\u2588 \u2588\u2588\u2588\u2591\u2588\u2588\u2588\u2591\u2591\u2591   \u2591\u2588\u2588\u2588     \n \u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588   \u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588  \u2591\u2591\u2588\u2588\u2588\u2588\u2588 \u2591\u2591\u2588\u2588\u2588\u2588\u2588\u2588  \u2588\u2588\u2588\u2588\u2588    \n  \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591    \u2591\u2588\u2588\u2588\u2591\u2591\u2591   \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591  \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591    \u2591\u2591\u2591\u2591\u2591   \u2591\u2591\u2591\u2591\u2591\u2591  \u2591\u2591\u2591\u2591\u2591     \n              \u2591\u2588\u2588\u2588                                                      \n              \u2588\u2588\u2588\u2588\u2588                                                     \n             \u2591\u2591\u2591\u2591\u2591                                                                                       \n";
-var tocDirectory = process.env.toc_directory || '';
-var githubWorkspace = process.env.GITHUB_WORKSPACE || '';
-var prTemplate = function (table) { return "World of Warcraft has updated its interface numbers and your addon TOC files are out of date.\n\nThis PR contains changes to the following TOC files, updating their interface numbers to the latest versions:\n\n".concat(table, "\n\nIf new interface versions are released before this PR is merged, this PR will automatically update to reflect those changes.\n\n---\n\n_This PR was created automatically by [WoW Addon Versioner](https://github.com/Jeany55/WowAddonVersioner)._\n"); };
-var issueTemplate = function (table) { return "---\ntitle: Addon TOC Files Out of Date\nlabels: addon-version-update, auto-generated\n---\nWorld of Warcraft has updated its interface numbers and your addon TOC files are out of date.\n\nThe following TOC files need to be updated:\n\n".concat(table, "\n\n---\n\n_This issue was created automatically by [WoW Addon Versioner](https://github.com/Jeany55/WowAddonVersioner)._\n"); };
-var Constants = {
+const LOGO = `
+          █████   ███   █████          █████   ███   █████              
+         ░░███   ░███  ░░███          ░░███   ░███  ░░███               
+          ░███   ░███   ░███   ██████  ░███   ░███   ░███               
+          ░███   ░███   ░███  ███░░███ ░███   ░███   ░███               
+          ░░███  █████  ███  ░███ ░███ ░░███  █████  ███                
+           ░░░█████░█████░   ░███ ░███  ░░░█████░█████░                 
+             ░░███ ░░███     ░░██████     ░░███ ░░███                   
+              ░░░   ░░░       ░░░░░░       ░░░   ░░░                    
+                                                                        
+                                                                        
+                                                                        
+             ███████████    ███████      █████████                      
+            ░█░░░███░░░█  ███░░░░░███   ███░░░░░███                     
+            ░   ░███  ░  ███     ░░███ ███     ░░░                      
+                ░███    ░███      ░███░███                              
+                ░███    ░███      ░███░███                              
+                ░███    ░░███     ███ ░░███     ███                     
+                █████    ░░░███████░   ░░█████████                      
+               ░░░░░       ░░░░░░░      ░░░░░░░░░                       
+                                                                        
+                                                                        
+                                                                        
+ █████  █████               █████            █████                      
+░░███  ░░███               ░░███            ░░███                       
+ ░███   ░███  ████████   ███████   ██████   ███████    ██████  ████████ 
+ ░███   ░███ ░░███░░███ ███░░███  ░░░░░███ ░░░███░    ███░░███░░███░░███
+ ░███   ░███  ░███ ░███░███ ░███   ███████   ░███    ░███████  ░███ ░░░ 
+ ░███   ░███  ░███ ░███░███ ░███  ███░░███   ░███ ███░███░░░   ░███     
+ ░░████████   ░███████ ░░████████░░████████  ░░█████ ░░██████  █████    
+  ░░░░░░░░    ░███░░░   ░░░░░░░░  ░░░░░░░░    ░░░░░   ░░░░░░  ░░░░░     
+              ░███                                                      
+              █████                                                     
+             ░░░░░                                                                                       
+`;
+const tocDirectory = process.env.toc_directory || '';
+const githubWorkspace = process.env.GITHUB_WORKSPACE || '';
+const prTemplate = (tocTable, actionTable) => {
+    const sections = ['World of Warcraft has updated its versions and your addon files are out of date.\n'];
+    if (tocTable) {
+        sections.push('This PR contains changes to the following TOC files, updating their interface numbers to the latest versions:\n', tocTable + '\n');
+    }
+    if (actionTable) {
+        sections.push('The following GitHub Action workflow files have been updated with the latest game versions:\n', actionTable + '\n');
+    }
+    sections.push('If new versions are released before this PR is merged, this PR will automatically update to reflect those changes.\n', '---\n', '_This PR was created automatically by [WoW Addon Versioner](https://github.com/Jeany55/WowAddonVersioner)._\n');
+    return sections.join('\n');
+};
+const issueTemplate = (tocTable, actionTable) => {
+    const sections = [
+        '---\ntitle: Addon Files Out of Date\nlabels: addon-version-update, auto-generated\n---',
+        'World of Warcraft has updated its versions and your addon files are out of date.\n'
+    ];
+    if (tocTable) {
+        sections.push('The following TOC files need to be updated:\n', tocTable + '\n');
+    }
+    if (actionTable) {
+        sections.push('The following GitHub Action workflow files need their game versions updated:\n', actionTable + '\n');
+    }
+    sections.push('---\n', '_This issue was created automatically by [WoW Addon Versioner](https://github.com/Jeany55/WowAddonVersioner)._\n');
+    return sections.join('\n');
+};
+const Constants = {
     COLOR_LOGO: createColorLogo(LOGO),
-    GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE || '',
+    GITHUB_WORKSPACE: githubWorkspace,
     ACTION_DIRECTORY: process.env.GITHUB_ACTION_PATH || '',
     TOC_DIRECTORY: tocDirectory ? path.join(githubWorkspace, tocDirectory) : githubWorkspace,
     TOC_DIRECTORY_EXTRA: tocDirectory,
     VERSION: version,
     WIKI_URL: process.env.wiki_url || '',
+    UPDATE_ACTION_VERSIONS: process.env.update_action_versions === 'true',
+    ACTION_VERSION_REGEX: process.env.action_version_regex || '',
     AUTHOR: author,
     PR_TEMPLATE: prTemplate,
     ISSUE_TEMPLATE: issueTemplate
@@ -30479,121 +30627,207 @@ createChalk();
 createChalk({level: stderrColor ? stderrColor.level : 0});
 
 // Force chalk to use color level 3 (24-bit/truecolor) for GitHub Actions compatibility
-var chalk = new Chalk({ level: 3 });
+const chalk = new Chalk({ level: 3 });
 /**
  * The main function for the action.
  *
  * @returns Resolves when the action is complete.
  */
-function run() {
-    return __awaiter(this, void 0, void 0, function () {
-        var tocFiles, wikiUrl, rawHTML_1, tocsNeededingUpdates_1, message, tocsOutput, markDownTable, error_1;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    _a.trys.push([0, 2, , 3]);
-                    coreExports.info(Constants.COLOR_LOGO +
-                        convertDataToHorizontalTable([
-                            [
-                                chalk.rgb(255, 153, 235)(Constants.VERSION),
-                                chalk.rgb(255, 153, 235)(Constants.AUTHOR),
-                                chalk.blueBright('Quetz the Great')
-                            ]
-                        ], [chalk.white('Version'), chalk.white('Author'), chalk.white('Special Thanks')], TABLE_STYLE_DOUBLE_LINED) +
-                        '\n──────────────────────────────────────────────────────────────────────────────────────────────────────────────');
-                    coreExports.info("Checking for toc files in directory: ".concat(chalk.bold(Constants.TOC_DIRECTORY)));
-                    tocFiles = readTocFilesFromDirectory(Constants.TOC_DIRECTORY);
-                    if (tocFiles.length === 0) {
-                        coreExports.error(chalk.red('No .toc files found in the specified directory! Check the "toc-directory" input and try again.'));
-                        coreExports.setFailed(chalk.red('No .toc files found in the specified directory.'));
-                        return [2 /*return*/];
-                    }
-                    wikiUrl = Constants.WIKI_URL;
-                    coreExports.info("Found ".concat(chalk.bold(tocFiles.length), " .toc file(s)!"));
-                    coreExports.info("Fetching current interface numbers from ".concat(chalk.bold(wikiUrl), "..."));
-                    return [4 /*yield*/, fetchWebpage(wikiUrl)];
-                case 1:
-                    rawHTML_1 = _a.sent();
-                    coreExports.info('Comparing toc interface numbers with latest versions...');
-                    tocFiles.forEach(function (tocFile) {
-                        if (tocFile.gameType) {
-                            var latestInterface = getInterfaceFromHtml(rawHTML_1, tocFile.gameType);
-                            if (latestInterface) {
-                                tocFile.checkAndUpdateInterfaceVersion(latestInterface);
-                            }
-                            else {
-                                tocFile.noKnownInterface = true;
-                            }
-                        }
-                    });
-                    tocsNeededingUpdates_1 = [];
-                    coreExports.info(convertDataToHorizontalTable(tocFiles.map(function (tocFile) {
-                        var newInterfaceNumber = '';
-                        if (tocFile.newInterfaceNumber) {
-                            newInterfaceNumber = chalk.greenBright(tocFile.newInterfaceNumber);
-                            tocsNeededingUpdates_1.push(tocFile);
-                        }
-                        else if (tocFile.noKnownInterface) {
-                            newInterfaceNumber = chalk.red('Unknown latest!');
-                        }
-                        else {
-                            newInterfaceNumber = tocFile.interfaceNumber;
-                        }
-                        return [tocFile.fileName, tocFile.gameType || 'Unknown', tocFile.interfaceNumber, newInterfaceNumber];
-                    }), [
-                        chalk.yellowBright('TOC File'),
-                        chalk.yellowBright('Game Type'),
-                        chalk.yellowBright('Current Interface Version'),
-                        chalk.yellowBright('Newest Interface Version')
-                    ]));
-                    if (tocsNeededingUpdates_1.length == 0) {
-                        coreExports.setOutput('tocs-updated', 0);
-                        coreExports.info(chalk.greenBright("All toc files are up to date! No interface updates needed."));
-                        return [2 /*return*/];
-                    }
-                    coreExports.info("Found ".concat(chalk.bold(tocsNeededingUpdates_1.length), " toc file(s) needing interface updates:"));
-                    if (process.env.fail_job_when_updates_found === 'true') {
-                        coreExports.error('Failing job due to fail-job-when-updates-found being set to true.');
-                        message = "".concat(tocsNeededingUpdates_1.length, " toc file(s) need interface updates: ").concat(tocsNeededingUpdates_1.map(function (toc) { return toc.fileName; }).join(', '));
-                        coreExports.error(message);
-                        coreExports.setFailed(message);
-                        return [2 /*return*/];
-                    }
-                    tocsOutput = tocsNeededingUpdates_1.map(function (tocFile) { return ({
-                        name: tocFile.fileName,
-                        gameType: tocFile.gameType || 'Unknown',
-                        oldVersion: tocFile.interfaceNumber,
-                        newVersion: tocFile.newInterfaceNumber
-                    }); });
-                    markDownTable = convertDataToMarkdownTable(__spreadArray([
-                        ['TOC File', 'Game Type', 'Old Version', 'New Version']
-                    ], tocsOutput.map(function (toc) { return [toc.name, toc.gameType, toc.oldVersion, toc.newVersion]; }), true));
-                    coreExports.setOutput('tocs-updated', tocsOutput.length);
-                    if (process.env.create_issue_if_updates_found === 'true') {
-                        coreExports.info('Creating issue template file...');
-                        // Make a brand new file
-                        fs.writeFileSync(path.join(Constants.ACTION_DIRECTORY, 'issue-template.md'), Constants.ISSUE_TEMPLATE(markDownTable), 'utf8');
-                    }
-                    coreExports.setOutput('tocs-pr', Constants.PR_TEMPLATE(markDownTable));
-                    coreExports.setOutput('tocs-issue', Constants.ISSUE_TEMPLATE(markDownTable));
-                    coreExports.info(convertDataToHorizontalTable(tocsNeededingUpdates_1.map(function (tocFile) { return [
-                        tocFile.fileName,
-                        "".concat(tocFile.interfaceNumber, " -> ").concat(tocFile.newInterfaceNumber)
-                    ]; }), [chalk.yellowBright('TOC File'), chalk.yellowBright('Update')]));
-                    coreExports.info('Updating toc files...');
-                    tocsNeededingUpdates_1.map(function (tocFile) { return tocFile.saveUpdatedInterfaceNumber(); });
-                    coreExports.info(chalk.greenBright.bold('All toc files updated.'));
-                    return [3 /*break*/, 3];
-                case 2:
-                    error_1 = _a.sent();
-                    // Fail the workflow run if an error occurs
-                    if (error_1 instanceof Error)
-                        coreExports.setFailed(error_1.message);
-                    return [3 /*break*/, 3];
-                case 3: return [2 /*return*/];
+async function run() {
+    try {
+        coreExports.info(Constants.COLOR_LOGO +
+            convertDataToHorizontalTable([
+                [
+                    chalk.rgb(255, 153, 235)(Constants.VERSION),
+                    chalk.rgb(255, 153, 235)(Constants.AUTHOR),
+                    chalk.blueBright('Quetz the Great')
+                ]
+            ], [chalk.white('Version'), chalk.white('Author'), chalk.white('Special Thanks')], TABLE_STYLE_DOUBLE_LINED) +
+            '\n──────────────────────────────────────────────────────────────────────────────────────────────────────────────');
+        coreExports.info(`Checking for toc files in directory: ${chalk.bold(Constants.TOC_DIRECTORY)}`);
+        const tocFiles = readTocFilesFromDirectory(Constants.TOC_DIRECTORY);
+        if (tocFiles.length === 0) {
+            coreExports.error(chalk.red('No .toc files found in the specified directory! Check the "toc-directory" input and try again.'));
+            coreExports.setFailed(chalk.red('No .toc files found in the specified directory.'));
+            return;
+        }
+        const wikiUrl = Constants.WIKI_URL;
+        coreExports.info(`Found ${chalk.bold(tocFiles.length)} .toc file(s)!`);
+        coreExports.info(`Fetching current interface numbers from ${chalk.bold(wikiUrl)}...`);
+        const rawHTML = await fetchWebpage(wikiUrl);
+        // ── TOC file processing ──────────────────────────────────────────────
+        coreExports.info('Comparing toc interface numbers with latest versions...');
+        tocFiles.forEach((tocFile) => {
+            if (tocFile.gameType) {
+                const latestInterface = getInterfaceFromHtml(rawHTML, tocFile.gameType);
+                if (latestInterface) {
+                    tocFile.checkAndUpdateInterfaceVersion(latestInterface);
+                }
+                else {
+                    tocFile.noKnownInterface = true;
+                }
             }
         });
-    });
+        const tocsNeededingUpdates = [];
+        coreExports.info(convertDataToHorizontalTable(tocFiles.map((tocFile) => {
+            let newInterfaceNumber = '';
+            if (tocFile.newInterfaceNumber) {
+                newInterfaceNumber = chalk.greenBright(tocFile.newInterfaceNumber);
+                tocsNeededingUpdates.push(tocFile);
+            }
+            else if (tocFile.noKnownInterface) {
+                newInterfaceNumber = chalk.red('Unknown latest!');
+            }
+            else {
+                newInterfaceNumber = tocFile.interfaceNumber;
+            }
+            return [tocFile.fileName, tocFile.gameType || 'Unknown', tocFile.interfaceNumber, newInterfaceNumber];
+        }), [
+            chalk.yellowBright('TOC File'),
+            chalk.yellowBright('Game Type'),
+            chalk.yellowBright('Current Interface Version'),
+            chalk.yellowBright('Newest Interface Version')
+        ]));
+        // ── GitHub Action file processing ────────────────────────────────────
+        const actionsNeedingUpdates = [];
+        if (Constants.UPDATE_ACTION_VERSIONS) {
+            coreExports.info('\nScanning GitHub Action workflow files for outdated game versions...');
+            const latestVersions = getAllVersionsFromHtml(rawHTML);
+            const actionFiles = readActionFilesFromDirectory(Constants.GITHUB_WORKSPACE);
+            if (actionFiles.length === 0) {
+                coreExports.info('No GitHub Action workflow files found in .github/workflows/');
+            }
+            else {
+                coreExports.info(`Found ${chalk.bold(actionFiles.length)} workflow file(s). Checking for game version strings...`);
+                for (const actionFile of actionFiles) {
+                    actionFile.checkAndUpdateVersions(latestVersions, Constants.ACTION_VERSION_REGEX);
+                }
+                // Collect action files needing updates
+                for (const actionFile of actionFiles) {
+                    if (actionFile.hasUpdates) {
+                        actionsNeedingUpdates.push(actionFile);
+                    }
+                }
+                // Build overview table showing all found versions (like the TOC table)
+                const actionOverviewRows = [];
+                for (const actionFile of actionFiles) {
+                    for (const found of actionFile.foundVersions) {
+                        let newestVersion = '';
+                        if (!found.gameType) {
+                            newestVersion = chalk.red('Unknown game type!');
+                        }
+                        else if (!found.latestVersion) {
+                            newestVersion = chalk.red('Unknown latest!');
+                        }
+                        else if (ActionFile.isVersionNewer(found.latestVersion, found.currentVersion)) {
+                            newestVersion = chalk.greenBright(found.latestVersion);
+                        }
+                        else {
+                            newestVersion = found.currentVersion;
+                        }
+                        actionOverviewRows.push([
+                            actionFile.relativePath,
+                            found.gameType || 'Unknown',
+                            found.currentVersion,
+                            newestVersion
+                        ]);
+                    }
+                }
+                if (actionOverviewRows.length > 0) {
+                    coreExports.info(convertDataToHorizontalTable(actionOverviewRows, [
+                        chalk.yellowBright('Action File'),
+                        chalk.yellowBright('Game Type'),
+                        chalk.yellowBright('Current Version'),
+                        chalk.yellowBright('Newest Version')
+                    ]));
+                }
+                else {
+                    coreExports.info('No game version strings found in workflow files.');
+                }
+            }
+        }
+        // ── Determine if any updates are needed ──────────────────────────────
+        const totalUpdates = tocsNeededingUpdates.length + actionsNeedingUpdates.length;
+        if (totalUpdates === 0) {
+            coreExports.setOutput('tocs-updated', 0);
+            coreExports.setOutput('actions-updated', 0);
+            coreExports.info(chalk.greenBright('Everything is up to date! No updates needed.'));
+            return;
+        }
+        if (tocsNeededingUpdates.length > 0) {
+            coreExports.info(`Found ${chalk.bold(tocsNeededingUpdates.length)} toc file(s) needing interface updates.`);
+        }
+        if (actionsNeedingUpdates.length > 0) {
+            coreExports.info(`Found ${chalk.bold(actionsNeedingUpdates.length)} action file(s) needing game version updates.`);
+        }
+        if (process.env.fail_job_when_updates_found === 'true') {
+            coreExports.error('Failing job due to fail-job-when-updates-found being set to true.');
+            const parts = [];
+            if (tocsNeededingUpdates.length > 0) {
+                parts.push(`${tocsNeededingUpdates.length} toc file(s) need interface updates: ${tocsNeededingUpdates.map((toc) => toc.fileName).join(', ')}`);
+            }
+            if (actionsNeedingUpdates.length > 0) {
+                parts.push(`${actionsNeedingUpdates.length} action file(s) need version updates: ${actionsNeedingUpdates.map((a) => a.relativePath).join(', ')}`);
+            }
+            const message = parts.join('; ');
+            coreExports.error(message);
+            coreExports.setFailed(message);
+            return;
+        }
+        // ── Build markdown tables for PR/issue ───────────────────────────────
+        const tocMarkdownTable = tocsNeededingUpdates.length > 0
+            ? convertDataToMarkdownTable([
+                ['TOC File', 'Game Type', 'Old Version', 'New Version'],
+                ...tocsNeededingUpdates.map((toc) => [
+                    toc.fileName,
+                    toc.gameType || 'Unknown',
+                    toc.interfaceNumber,
+                    toc.newInterfaceNumber
+                ])
+            ])
+            : undefined;
+        const actionMarkdownTable = actionsNeedingUpdates.length > 0
+            ? convertDataToMarkdownTable([
+                ['Action File', 'Game Type', 'Old Version', 'New Version'],
+                ...actionsNeedingUpdates.flatMap((actionFile) => actionFile.versionUpdates.map((update) => [
+                    actionFile.relativePath,
+                    update.gameType,
+                    update.oldVersion,
+                    update.newVersion
+                ]))
+            ])
+            : undefined;
+        coreExports.setOutput('tocs-updated', tocsNeededingUpdates.length);
+        coreExports.setOutput('actions-updated', actionsNeedingUpdates.length);
+        if (process.env.create_issue_if_updates_found === 'true') {
+            coreExports.info('Creating issue template file...');
+            fs.writeFileSync(path.join(Constants.ACTION_DIRECTORY, 'issue-template.md'), Constants.ISSUE_TEMPLATE(tocMarkdownTable, actionMarkdownTable), 'utf8');
+        }
+        coreExports.setOutput('tocs-pr', Constants.PR_TEMPLATE(tocMarkdownTable, actionMarkdownTable));
+        coreExports.setOutput('tocs-issue', Constants.ISSUE_TEMPLATE(tocMarkdownTable, actionMarkdownTable));
+        // ── Display summary and apply updates ────────────────────────────────
+        if (tocsNeededingUpdates.length > 0) {
+            coreExports.info(convertDataToHorizontalTable(tocsNeededingUpdates.map((tocFile) => [
+                tocFile.fileName,
+                `${tocFile.interfaceNumber} -> ${tocFile.newInterfaceNumber}`
+            ]), [chalk.yellowBright('TOC File'), chalk.yellowBright('Update')]));
+        }
+        if (actionsNeedingUpdates.length > 0) {
+            coreExports.info(convertDataToHorizontalTable(actionsNeedingUpdates.flatMap((actionFile) => actionFile.versionUpdates.map((update) => [
+                actionFile.relativePath,
+                `${update.oldVersion} -> ${update.newVersion}`
+            ])), [chalk.yellowBright('Action File'), chalk.yellowBright('Update')]));
+        }
+        coreExports.info('Updating files...');
+        tocsNeededingUpdates.forEach((tocFile) => tocFile.saveUpdatedInterfaceNumber());
+        actionsNeedingUpdates.forEach((actionFile) => actionFile.saveUpdatedVersions());
+        coreExports.info(chalk.greenBright.bold('All files updated.'));
+    }
+    catch (error) {
+        // Fail the workflow run if an error occurs
+        if (error instanceof Error)
+            coreExports.setFailed(error.message);
+    }
 }
 
 /**

@@ -7,3 +7,6 @@ export enum GameType {
   Cataclysm = 'Cata',
   Mists = 'Mists'
 }
+
+export { ActionFile } from './actionFile'
+export type { ActionVersionUpdate, ActionVersionFound } from './actionFile'
